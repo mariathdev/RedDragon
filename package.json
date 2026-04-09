@@ -1,0 +1,23 @@
+{
+  "name": "red-dragon-bot",
+  "version": "2.0.0",
+  "description": "Red Dragon -- Discord Bot",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node scripts/deploy-commands.js",
+    "check": "find src -name '*.js' -exec node --check {} +",
+    "validate": "bash scripts/ralph-loop.sh 1"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "lavalink-client": "^2.10.0",
+    "libsodium-wrappers": "^0.7.15"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
