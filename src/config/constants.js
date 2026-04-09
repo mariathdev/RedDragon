@@ -8,8 +8,8 @@ export const Colors = {
 
 export const Bot = {
     NAME:        'Red Dragon',
-    VERSION:     '1.0.0',
-    ICON_PATH:   './assets/RedDragon.png',
+    VERSION:     '2.0.0',
+    ICON_PATH:   './assets/logo.webp',
     FOOTER_TEXT: 'Red Dragon Bot',
 };
 

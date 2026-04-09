@@ -6,6 +6,8 @@ const PREFIX = '!';
 
 const ALIASES = {
     roll:       'rolar',
+    ini:        'ini',
+    fim:        'fim',
     play:       'play',
     pause:      'pause',
     resume:     'resume',

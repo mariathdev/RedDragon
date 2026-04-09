@@ -26,7 +26,7 @@ All embeds and visual elements follow these colors, without exception.
 - Success: `DRACO_GREEN`
 - Warning: `FYRE_ORANGE`
 - Footer always with bot name
-- Thumbnail with `RedDragon.png` in main embeds
+- Thumbnail with `logo.webp` in main embeds
 - Never use hex directly in commands, always via `config/constants.js`
 
 ---
@@ -76,7 +76,8 @@ red-dragon-bot/
     loops/
       healthCheck.js         -- Periodic health monitoring
   assets/
-    RedDragon.png            -- Avatar and thumbnail
+    logo.webp                -- Avatar and thumbnail
+    banner.webp              -- README banner
   scripts/
     ralph-loop.sh            -- Iterative validation script
     deploy-commands.js       -- Slash command registration
