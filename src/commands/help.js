@@ -7,7 +7,9 @@ export const data = new SlashCommandBuilder()
     .setDescription('List all available commands');
 
 export async function execute(interaction) {
-    const fields = interaction.client.commands.map(cmd => ({
+    const fields = [...interaction.client.commands.values()]
+        .sort((left, right) => left.data.name.localeCompare(right.data.name))
+        .map((cmd) => ({
         name:   `/${cmd.data.name}`,
         value:  cmd.data.description || 'No description.',
         inline: false,

@@ -1,5 +1,3 @@
-import { logger } from '../utils/logger.js';
-
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API_BASE  = 'https://api.spotify.com/v1';
 
@@ -26,7 +24,6 @@ async function getAccessToken(clientId, clientSecret) {
     const data = await res.json();
     cachedToken = data.access_token;
     tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-    logger.info('Spotify', 'Access token refreshed.');
     return cachedToken;
 }
 

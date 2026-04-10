@@ -3,7 +3,6 @@ export const Colors = {
     FYRE_ORANGE:    0xE66E1D,
     EMBERS_GOLD:    0xF9A602,
     DRACO_GREEN:    0x27E13E,
-    OBSIDIAN_SCALE: 0x1A0A05,
 };
 
 export const Bot = {

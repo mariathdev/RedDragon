@@ -15,9 +15,15 @@ export const data = new SlashCommandBuilder()
     );
 
 export async function execute(interaction) {
-    await interaction.deferReply();
+    const expr = interaction.options.getString('expression');
+    if (!expr) {
+        return interaction.reply({
+            embeds: [errorEmbed({ description: 'Provide a dice expression. Example: `d20+5`.' })],
+            ephemeral: true,
+        });
+    }
 
-    const expr   = interaction.options.getString('expression');
+    await interaction.deferReply();
     const result = parse(expr);
 
     if (result.error) {

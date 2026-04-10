@@ -16,6 +16,9 @@ export function startHealthLoop(client) {
         logger.warn('Health', 'Loop already running, ignoring duplicate call');
         return;
     }
+
+    tick = 0;
+    failures = 0;
     logger.info('Health', `Starting periodic check (${Loop.HEALTH_INTERVAL_MS}ms)`);
     timer = setInterval(() => check(client), Loop.HEALTH_INTERVAL_MS);
 }
@@ -25,6 +28,8 @@ export function stopHealthLoop() {
     clearInterval(timer);
     timer = null;
     logger.info('Health', `Loop stopped after ${tick} cycle(s)`);
+    tick = 0;
+    failures = 0;
 }
 
 function check(client) {

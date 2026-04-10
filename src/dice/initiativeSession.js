@@ -20,12 +20,13 @@ export function registerInitiativeRoll(channelId, entry) {
         return { ok: false, reason: 'missing_session' };
     }
 
-    if (session.entries.length >= MAX_PARTICIPANTS) {
-        return { ok: false, reason: 'session_full' };
+    const existingEntry = session.entries.find((item) => item.userId === entry.userId);
+    if (existingEntry) {
+        return { ok: false, reason: 'already_registered', entry: existingEntry };
     }
 
-    if (session.entries.some((item) => item.userId === entry.userId)) {
-        return { ok: false, reason: 'already_registered', entry: session.entries.find((item) => item.userId === entry.userId) };
+    if (session.entries.length >= MAX_PARTICIPANTS) {
+        return { ok: false, reason: 'session_full' };
     }
 
     session.entries.push(entry);
@@ -52,8 +53,6 @@ export function createInitiativeEntry({ userId, userName, result, expression }) 
         name: userName,
         total: result.total,
         expression,
-        rolls: result.rolls,
-        type: result.type,
         modifier: result.type === 'modifier' ? `${result.sign}${result.modifier}` : null,
     };
 }

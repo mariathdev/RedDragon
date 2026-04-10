@@ -5,7 +5,6 @@ import { createEmbed, errorEmbed, warningEmbed } from '../../utils/embedBuilder.
 import { logger } from '../../utils/logger.js';
 import { Colors, Music } from '../../config/constants.js';
 import { env } from '../../config/environment.js';
-import { createQueuedTrackEmbed, enqueueFirstResolvedTrack } from '../../music/playbackRequests.js';
 
 export const data = new SlashCommandBuilder()
     .setName('play')
@@ -17,15 +16,23 @@ export const data = new SlashCommandBuilder()
     );
 
 export async function execute(interaction) {
+    const query = interaction.options.getString('query');
+    if (!query) {
+        return interaction.reply({
+            embeds: [warningEmbed({ description: 'Provide a search query or a supported URL.' })],
+            ephemeral: true,
+        });
+    }
+
     await interaction.deferReply();
 
-    const voiceChannel = interaction.member.voice.channel;
+    const voiceChannel = interaction.member?.voice?.channel;
     if (!voiceChannel) {
         return interaction.editReply({ embeds: [warningEmbed({ description: 'You need to be in a voice channel.' })] });
     }
 
     const perms = voiceChannel.permissionsFor(interaction.client.user);
-    if (!perms.has(PermissionsBitField.Flags.Connect) || !perms.has(PermissionsBitField.Flags.Speak)) {
+    if (!perms?.has(PermissionsBitField.Flags.Connect) || !perms.has(PermissionsBitField.Flags.Speak)) {
         return interaction.editReply({ embeds: [errorEmbed({ description: 'No permission to join or speak in the channel.' })] });
     }
 
@@ -35,13 +42,9 @@ export async function execute(interaction) {
         return interaction.editReply({ embeds: [errorEmbed({ description: err.message })] });
     }
 
-    const query = interaction.options.getString('query');
-
-    if (isSpotifyUrl(query)) {
-        return handleSpotify(interaction, query);
-    }
-
-    return handleSearch(interaction, query);
+    return isSpotifyUrl(query)
+        ? handleSpotify(interaction, query)
+        : handleSearch(interaction, query);
 }
 
 async function handleSearch(interaction, query) {
@@ -81,6 +84,7 @@ async function handleSpotify(interaction, query) {
 
     if (type === 'track') {
         const { searchQuery, title } = tracks[0];
+
         try {
             const { track, enqueueResult } = await enqueueFirstResolvedTrack({
                 guildId: interaction.guildId,
@@ -101,41 +105,73 @@ async function handleSpotify(interaction, query) {
         }
     }
 
-    // Album or playlist — bulk enqueue
     const cappedTracks = tracks.slice(0, Music.MAX_QUEUE);
     const typeLabel = type === 'album' ? 'Album' : 'Playlist';
 
-    const loadingEmbed = createEmbed({
-        color:       Colors.FYRE_ORANGE,
-        title:       `Loading ${typeLabel}`,
-        description: `**${name}** — ${cappedTracks.length} tracks\nThis may take a moment...`,
-        fields:      [{ name: 'Requested by', value: interaction.user.username, inline: true }],
+    await interaction.editReply({
+        embeds: [createEmbed({
+            color: Colors.FYRE_ORANGE,
+            title: `Loading ${typeLabel}`,
+            description: `**${name}** - ${cappedTracks.length} tracks\nThis may take a moment...`,
+            fields: [{ name: 'Requested by', value: interaction.user.username, inline: true }],
+        })],
     });
-    await interaction.editReply({ embeds: [loadingEmbed] });
 
     let added = 0;
-    for (const spotTrack of cappedTracks) {
+    for (const spotifyTrack of cappedTracks) {
         try {
-            const laTracks = await pm.resolve(
+            const tracksFromSearch = await pm.resolve(
                 interaction.guildId,
-                `ytmsearch:${spotTrack.searchQuery}`,
+                `ytmsearch:${spotifyTrack.searchQuery}`,
                 interaction.user.username,
             );
-            if (!laTracks?.length) continue;
-            const track = laTracks[0];
+
+            if (!tracksFromSearch?.length) {
+                continue;
+            }
+
+            const track = tracksFromSearch[0];
             track.requester = interaction.user.username;
-            const err = await pm.enqueue(interaction.guildId, track);
-            if (!err) added++;
+
+            if (!await pm.enqueue(interaction.guildId, track)) {
+                added++;
+            }
         } catch (err) {
-            logger.warn('Spotify', `Skipped track "${spotTrack.title}": ${err.message}`);
+            logger.warn('Spotify', `Skipped track "${spotifyTrack.title}": ${err.message}`);
         }
     }
 
-    const doneEmbed = createEmbed({
-        color:       Colors.DRACO_GREEN,
-        title:       `${typeLabel} loaded`,
-        description: `**${name}** — ${added}/${cappedTracks.length} tracks added`,
-        fields:      [{ name: 'Requested by', value: interaction.user.username, inline: true }],
+    return interaction.followUp({
+        embeds: [createEmbed({
+            color: Colors.DRACO_GREEN,
+            title: `${typeLabel} loaded`,
+            description: `**${name}** - ${added}/${cappedTracks.length} tracks added`,
+            fields: [{ name: 'Requested by', value: interaction.user.username, inline: true }],
+        })],
     });
-    return interaction.followUp({ embeds: [doneEmbed] });
+}
+
+async function enqueueFirstResolvedTrack({ guildId, query, requester, fallbackTitle = 'Song' }) {
+    const tracks = await pm.resolve(guildId, query, requester);
+    const track = tracks?.[0];
+
+    if (!track) {
+        throw new Error(`No results found for: ${fallbackTitle}`);
+    }
+
+    track.requester = requester;
+
+    return {
+        track,
+        enqueueResult: await pm.enqueue(guildId, track),
+    };
+}
+
+function createQueuedTrackEmbed(title, requester) {
+    return createEmbed({
+        color: Colors.FYRE_ORANGE,
+        title: 'Added to queue',
+        description: `**${title}**`,
+        fields: [{ name: 'Requested by', value: requester, inline: true }],
+    });
 }

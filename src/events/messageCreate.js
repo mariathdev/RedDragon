@@ -1,8 +1,7 @@
 import { createContext } from '../utils/messageContext.js';
-import { executeCommand } from '../utils/commandExecutor.js';
+import { handleInteractionError } from '../utils/errorHandler.js';
 
 const PREFIX = '!';
-
 const ALIASES = {
     endinitiative: 'end',
     initiativeend: 'end',
@@ -11,24 +10,19 @@ const ALIASES = {
 export const name = 'messageCreate';
 
 export async function execute(message) {
-    if (message.author.bot) return;
-    if (!message.content.startsWith(PREFIX)) return;
+    if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
     const [rawName, ...args] = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const commandName = rawName?.toLowerCase();
     if (!commandName) return;
 
-    const slashName = ALIASES[commandName] ?? commandName;
-    const cmd       = message.client.commands.get(slashName);
-    if (!cmd) return;
+    const command = message.client.commands.get(ALIASES[commandName] ?? commandName);
+    if (!command) return;
+    const context = createContext(message, command.data.name, args);
 
-    const ctx = createContext(message, slashName, args);
-    await executeCommand({
-        command: cmd,
-        context: ctx,
-        logContext: 'Prefix',
-        actorTag: message.author.tag,
-        invokedName: `!${commandName}`,
-        location: message.guild?.name ?? 'DM',
-    });
+    try {
+        await command.execute(context);
+    } catch (err) {
+        await handleInteractionError(context, err);
+    }
 }

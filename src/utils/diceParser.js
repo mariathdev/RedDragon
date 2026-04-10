@@ -13,6 +13,10 @@ function validate(count, sides) {
 }
 
 export function parse(raw) {
+    if (typeof raw !== 'string' || !raw.trim()) {
+        return { error: 'Provide a dice expression. Examples: `d20`, `2d6`, `1d20+5`, `4d6dl1`, `5#1d20`' };
+    }
+
     const expr = raw.trim().toLowerCase().replace(/\s+/g, '');
 
     let m;

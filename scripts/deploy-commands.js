@@ -11,7 +11,6 @@ async function deploy() {
         const mod = await importModule(file);
         if (!mod.data) continue;
         commands.push(mod.data.toJSON());
-        console.log(`  Prepared: /${mod.data.name}`);
     }
 
     const rest = new REST({ version: '10' }).setToken(env.token);

@@ -3,7 +3,8 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 
 export async function collectJavaScriptFiles(dir) {
-    const entries = await readdir(dir, { withFileTypes: true });
+    const entries = (await readdir(dir, { withFileTypes: true }))
+        .sort((left, right) => left.name.localeCompare(right.name));
     const files = [];
 
     for (const entry of entries) {

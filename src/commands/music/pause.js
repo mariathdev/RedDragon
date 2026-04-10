@@ -1,19 +1,14 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { successEmbed, warningEmbed } from '../../utils/embedBuilder.js';
-import { getPlaybackState, getTrackTitle } from '../../music/commandSupport.js';
+import { getTrackTitle } from '../../music/playerManager.js';
+import { createControlCommand } from '../../music/controlCommand.js';
 
-export const data = new SlashCommandBuilder()
-    .setName('pause')
-    .setDescription('Pause current song');
-
-export async function execute(interaction) {
-    const state = getPlaybackState(interaction.guildId);
-
-    if (!state.player || !state.currentTrack || state.player.paused) {
-        return interaction.reply({ embeds: [warningEmbed({ description: 'Nothing is playing right now.' })], ephemeral: true });
-    }
-
-    await state.player.pause();
-
-    return interaction.reply({ embeds: [successEmbed({ title: 'Paused', description: `**${getTrackTitle(state.currentTrack)}**` })] });
-}
+export const { data, execute } = createControlCommand({
+    name: 'pause',
+    description: 'Pause current song',
+    getWarning: (state) => (!state.player || !state.currentTrack || state.player.paused)
+        ? 'Nothing is playing right now.'
+        : null,
+    run: async (state) => {
+        await state.player.pause();
+        return { title: 'Paused', description: `**${getTrackTitle(state.currentTrack)}**` };
+    },
+});

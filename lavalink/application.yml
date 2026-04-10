@@ -1,0 +1,81 @@
+debug: false
+
+spring:
+  main:
+    banner-mode: "off"
+
+server:
+  port: 2333
+  address: 0.0.0.0
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
+    oauth:
+      enabled: false
+
+lavalink:
+  plugins:
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.0"
+      repository: "https://maven.lavalink.dev/releases"
+      snapshot: false
+  server:
+    password: "red-dragon"
+    sources:
+      youtube: false
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true
+      local: false
+    filters:
+      volume: true
+      equalizer: true
+      timescale: true
+      tremolo: true
+      vibrato: true
+      distortion: true
+      rotation: true
+      channelMix: true
+      lowPass: true
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    playerUpdateInterval: 5
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    gc-warnings: true
+
+metrics:
+  prometheus:
+    enabled: false
+
+sentry:
+  dsn: ""
+
+logging:
+  request:
+    enabled: false
+  level:
+    root: WARN
+    lavalink: INFO
+    dev.lavalink.youtube: INFO
+    org.springframework: WARN
+    org.springframework.boot: WARN
+    org.springframework.boot.web.servlet.ServletContextInitializerBeans: WARN
+    org.springframework.cloud: WARN
+    org.springframework.web: WARN
+    io.undertow: WARN
+    io.undertow.websockets.jsr: ERROR
+    org.xnio: WARN
+    org.jboss: WARN
+    lavalink.server.config.SentryConfiguration: ERROR
+    lavalink.server.config.KoeConfiguration: WARN

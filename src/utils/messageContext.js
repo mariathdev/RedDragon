@@ -14,7 +14,7 @@ export function createContext(message, commandName, args) {
 
         options: {
             getString:  () => args.join(' ') || null,
-            getInteger: () => { const n = parseInt(args[0]); return isNaN(n) ? null : n; },
+            getInteger: () => { const n = Number.parseInt(args[0], 10); return Number.isNaN(n) ? null : n; },
             getBoolean: () => null,
         },
 

@@ -3,15 +3,15 @@
 # Red Dragon Bot
 
 Discord bot written in Node.js with discord.js v14 and Lavalink v4.
-Supports music playback (YouTube, Spotify), RPG dice rolling, and server utilities.
+Supports music playback, RPG dice rolling, and basic server utilities.
 
 ---
 
 ## Requirements
 
 - Node.js 18+
-- A running [Lavalink v4](https://github.com/lavalink-devs/Lavalink) server
-- A Discord application with bot token
+- Lavalink v4 installed in `C:\Lavalink`
+- A Discord application with a bot token
 
 ---
 
@@ -36,36 +36,40 @@ DISCORD_GUILD_ID=your_development_guild_id
 
 LAVALINK_HOST=localhost
 LAVALINK_PORT=2333
-LAVALINK_PASSWORD=youshallnotpass
+LAVALINK_PASSWORD=red-dragon
 LAVALINK_SECURE=false
 LAVALINK_NODE_ID=Main Node
 LAVALINK_DEFAULT_SEARCH=ytmsearch
 
-# Optional — Spotify support
+# Optional - Spotify support
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 
-# Optional — GIF integration
+# Optional - GIF integration
 GIF_API_KEY=your_klipy_api_key
 ```
 
-### 3. Start Lavalink
+### 3. Start the stack
 
 ```bash
-# Windows
-lavalink/start-lavalink.ps1
-
-# Or manually
-java -jar lavalink/Lavalink.jar
+start.bat
 ```
 
-### 4. Deploy slash commands
+`start.bat` installs missing Node dependencies, syncs `lavalink/application.yml` to `C:\Lavalink`, starts Lavalink, deploys slash commands, and then starts the bot.
+
+If you prefer to start Lavalink manually, use:
+
+```bash
+java -jar C:\Lavalink\Lavalink.jar
+```
+
+### 4. Deploy slash commands only
 
 ```bash
 npm run deploy
 ```
 
-### 5. Start the bot
+### 5. Start the bot only
 
 ```bash
 npm start
@@ -78,18 +82,18 @@ npm start
 ### Music
 | Command | Description |
 |---------|-------------|
-| `/play` | Play or enqueue a track (YouTube / Spotify) |
+| `/play` | Play or enqueue a track from YouTube or Spotify |
 | `/pause` | Pause playback |
 | `/resume` | Resume playback |
-| `/skip` | Skip current track |
-| `/stop` | Stop and clear queue |
-| `/queue` | Show queue with pagination |
+| `/skip` | Skip the current track |
+| `/stop` | Stop playback and clear the queue |
+| `/queue` | Show the queue with pagination |
 | `/disconnect` | Leave the voice channel |
 
 ### Dice
 | Command | Description |
 |---------|-------------|
-| `/roll` | Roll dice using RPG notation (e.g. `2d6+3`) |
+| `/roll` | Roll dice using RPG notation such as `2d6+3` |
 | `/initiative` | Start an initiative session or roll initiative |
 | `/end` | End the initiative session and show turn order |
 
@@ -97,19 +101,17 @@ npm start
 | Command | Description |
 |---------|-------------|
 | `/ping` | Show bot latency |
-| `/status` | Show uptime and metrics |
+| `/status` | Show uptime and basic metrics |
 | `/help` | List all commands |
+
+Prefix commands using `!` are also supported for the same command names, such as `!roll`, `!initiative`, `!end`, and `!play`.
 
 ---
 
 ## Validation
 
 ```bash
-# Syntax check all JS files
 npm run check
-
-# Run the Ralph Loop validation
-npm run validate
 ```
 
 ---

@@ -9,7 +9,10 @@ function withStack(error) {
 export const logger = {
     debug: (ctx, msg) => console.debug(fmt('DEBUG', ctx, msg)),
     info:  (ctx, msg) => console.info(fmt('INFO', ctx, msg)),
-    warn:  (ctx, msg) => console.warn(fmt('WARN', ctx, msg)),
+    warn(ctx, msg, err = null) {
+        console.warn(fmt('WARN', ctx, msg));
+        withStack(err);
+    },
 
     error(ctx, msg, err = null) {
         console.error(fmt('ERROR', ctx, msg));

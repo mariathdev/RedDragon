@@ -8,9 +8,6 @@ export const name = 'clientReady';
 export const once = true;
 
 export async function execute(client) {
-    logger.info('Ready', `Logged in as ${client.user.tag}`);
-    logger.info('Ready', `${client.guilds.cache.size} server(s) | ${client.commands.size} command(s)`);
-
     client.user.setPresence({
         status: 'online',
         activities: [{
@@ -22,12 +19,11 @@ export async function execute(client) {
     if (client.lavalink) {
         try {
             await initLavalink();
-            logger.info('Lavalink', 'Connected to Lavalink node successfully');
         } catch (err) {
             logger.warn('Lavalink', 'Could not connect to Lavalink node. Music may not work.', err);
         }
     }
 
     startHealthLoop(client);
-    logger.info('Ready', 'Red Dragon online.');
+    logger.info('Ready', `${client.user.tag} online | ${client.guilds.cache.size} server(s) | ${client.commands.size} command(s)`);
 }

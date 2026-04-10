@@ -30,9 +30,6 @@ function probeLavalink(host, port, timeoutMs = 2500) {
 function registerLavalinkEvents(lavalink) {
     lavalink.nodeManager.on('connect', (node) => {
         logger.info('Lavalink', `Node connected: ${node.id}`);
-        node.updateSession(true, 300_000).catch((err) => {
-            logger.warn('Lavalink', `Could not enable session resuming on node ${node.id}`, err);
-        });
     });
 
     lavalink.nodeManager.on('disconnect', (node) => {
@@ -48,7 +45,6 @@ function registerLavalinkEvents(lavalink) {
     });
 
     lavalink.on('trackStart', (player, track) => {
-        logger.info('Lavalink', `trackStart: "${track.info?.title}" in guild ${player.guildId}`);
         const channel = player.textChannelId
             ? client.channels.cache.get(player.textChannelId)
             : null;
@@ -66,13 +62,18 @@ function registerLavalinkEvents(lavalink) {
         channel.send({ embeds: [embed] }).catch(() => {});
     });
 
-    lavalink.on('trackEnd', (_player, track, payload) => {
-        logger.info('Lavalink', `Track ended: "${track.info?.title}" (reason: ${payload?.reason})`);
+    lavalink.on('trackEnd', (player, track, payload) => {
+        if (payload.reason === 'replaced') return;
+        logger.debug('Lavalink', `Track ended: "${track?.info?.title}" reason=${payload.reason}`);
+    });
+
+    lavalink.on('queueEnd', (player) => {
+        logger.debug('Lavalink', `Queue ended for guild ${player.guildId}`);
     });
 
     lavalink.on('trackError', (player, track, payload) => {
         const msg = payload?.exception?.message ?? payload?.error ?? JSON.stringify(payload);
-        logger.error('Lavalink', `Track error on "${track.info?.title}": ${msg}`);
+        logger.error('Lavalink', `Track error on "${track?.info?.title}": ${msg}`);
 
         const channel = player.textChannelId
             ? client.channels.cache.get(player.textChannelId)
@@ -81,58 +82,32 @@ function registerLavalinkEvents(lavalink) {
             const embed = createEmbed({
                 color: Colors.DRAGON_BLOOD,
                 title: 'Playback Error',
-                description: `Could not play **${track.info?.title ?? 'track'}**.\n\`${msg}\``,
+                description: `Could not play **${track?.info?.title ?? 'track'}**.\n\`${msg}\``,
             });
             channel.send({ embeds: [embed] }).catch(() => {});
         }
     });
 
     lavalink.on('trackStuck', (player, track, payload) => {
-        logger.warn('Lavalink', `Track stuck: "${track.info?.title}" (threshold: ${payload?.thresholdMs}ms) -- skipping`);
+        logger.warn('Lavalink', `Track stuck: "${track?.info?.title}" (threshold: ${payload?.thresholdMs}ms) -- skipping`);
         player.skip().catch(() => {});
     });
 
-    lavalink.on('queueEnd', (player) => {
-        logger.info('Lavalink', `Queue ended for guild ${player.guildId}`);
-    });
-
-    lavalink.on('playerDisconnect', (player, voiceChannelId) => {
-        logger.warn('Lavalink', `Player disconnected from voice channel ${voiceChannelId} in guild ${player.guildId}`);
-    });
-
-    lavalink.on('playerReconnect', (player, voiceChannelId) => {
-        logger.info('Lavalink', `Player reconnected to voice channel ${voiceChannelId} in guild ${player.guildId}`);
-    });
-
     lavalink.on('playerSocketClosed', (player, payload) => {
-        logger.warn(
-            'Lavalink',
-            `Voice socket closed for guild ${player.guildId} (code: ${payload?.code ?? 'unknown'}, byRemote: ${payload?.byRemote ?? 'unknown'}, reason: ${payload?.reason ?? 'unknown'})`,
-        );
-    });
-
-    lavalink.on('playerCreate', (player) => {
-        logger.info('Lavalink', `Player created for guild ${player.guildId}`);
-    });
-
-    lavalink.on('playerDestroy', (_player, reason) => {
-        logger.info('Lavalink', `Player destroyed: ${reason}`);
+        logger.warn('Lavalink', `Voice socket closed for guild ${player.guildId}: code=${payload.code} reason=${payload.reason} byRemote=${payload.byRemote}`);
     });
 }
 
 export function createLavalinkManager(botClient) {
     client = botClient;
-
     const lavalink = new LavalinkManager({
-        nodes: [
-            {
-                host: env.lavalink.host,
-                port: env.lavalink.port,
-                authorization: env.lavalink.password,
-                id: env.lavalink.nodeId,
-                secure: env.lavalink.secure,
-            },
-        ],
+        nodes: [{
+            host: env.lavalink.host,
+            port: env.lavalink.port,
+            authorization: env.lavalink.password,
+            id: env.lavalink.nodeId,
+            secure: env.lavalink.secure,
+        }],
         sendToShard: (guildId, payload) => {
             client.guilds.cache.get(guildId)?.shard?.send(payload);
         },
@@ -159,8 +134,6 @@ export function createLavalinkManager(botClient) {
 
     registerLavalinkEvents(lavalink);
     client.lavalink = lavalink;
-
-    logger.info('Lavalink', 'LavalinkManager created (awaiting node connection)');
     return lavalink;
 }
 
@@ -239,6 +212,22 @@ export function get(guildId) {
     };
 }
 
+export function getPlaybackState(guildId) {
+    const state = get(guildId);
+    const player = state?.player ?? null;
+    const currentTrack = player?.queue?.current ?? player?.track ?? null;
+
+    return {
+        ...(state ?? {}),
+        player,
+        currentTrack,
+    };
+}
+
+export function getTrackTitle(track, fallback = 'current song') {
+    return track?.info?.title ?? track?.title ?? fallback;
+}
+
 export async function connect(guildId, voiceChannel, textChannel) {
     const lavalink = await ensureLavalinkReady();
     let player = lavalink.getPlayer(guildId);
@@ -251,9 +240,9 @@ export async function connect(guildId, voiceChannel, textChannel) {
             selfDeaf: true,
             selfMute: false,
         });
-    }
-
-    if (!player.connected) {
+        await player.connect();
+    } else if (player.voiceChannelId !== voiceChannel.id) {
+        player.options.voiceChannelId = voiceChannel.id;
         await player.connect();
     }
 

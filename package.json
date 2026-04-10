@@ -7,8 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node scripts/deploy-commands.js",
-    "check": "find src -name '*.js' -exec node --check {} +",
-    "validate": "bash scripts/ralph-loop.sh 1"
+    "check": "node scripts/check.js"
   },
   "dependencies": {
     "discord.js": "^14.16.3",

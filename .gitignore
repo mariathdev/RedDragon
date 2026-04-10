@@ -6,9 +6,6 @@
 # Dependencies
 node_modules/
 
-# Lavalink config (contains passwords)
-lavalink/application.yml
-
 # Logs
 *.log
 logs/
@@ -21,6 +18,7 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
+CLAUDE.md
 
 # Runtime
 *.pid

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
+import { getPlaybackState, getTrackTitle } from '../../music/playerManager.js';
 import { createEmbed, warningEmbed } from '../../utils/embedBuilder.js';
 import { Colors, Music } from '../../config/constants.js';
-import { getPlaybackState, getTrackTitle } from '../../music/commandSupport.js';
 
 export const data = new SlashCommandBuilder()
     .setName('queue')
@@ -19,20 +19,23 @@ export async function execute(interaction) {
         return interaction.reply({ embeds: [warningEmbed({ description: 'The queue is empty.' })], ephemeral: true });
     }
 
-    const page = interaction.options.getInteger('page') ?? 1;
     const tracks = state.player.queue.tracks;
     const total = tracks.length;
     const pages = Math.max(1, Math.ceil(total / Music.PAGE_SIZE));
+    const requestedPage = interaction.options.getInteger('page') ?? 1;
+    const page = Math.min(Math.max(requestedPage, 1), pages);
     const start = (page - 1) * Music.PAGE_SIZE;
     const slice = tracks.slice(start, start + Music.PAGE_SIZE);
 
-    const lines = slice.map((t, i) => `**${start + i + 1}.** ${t.info?.title ?? t.title} — *${t.requester ?? 'Unknown'}*`);
+    const lines = slice.map((track, index) => (
+        `**${start + index + 1}.** ${track.info?.title ?? track.title} - *${track.requester ?? 'Unknown'}*`
+    ));
 
     const embed = createEmbed({
-        color:       Colors.FYRE_ORANGE,
-        title:       'Playback Queue',
+        color: Colors.FYRE_ORANGE,
+        title: 'Playback Queue',
         description: lines.join('\n') || 'No songs in queue.',
-        fields:      [
+        fields: [
             state.currentTrack
                 ? { name: 'Now Playing', value: `**${getTrackTitle(state.currentTrack)}**`, inline: false }
                 : null,
