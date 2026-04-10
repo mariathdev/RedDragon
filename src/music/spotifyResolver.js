@@ -38,9 +38,8 @@ async function apiGet(path, token) {
     return res.json();
 }
 
-// Returns { type: 'track'|'album'|'playlist', id: string } or null
 export function parseSpotifyUrl(query) {
-    const urlMatch = query.match(/open\.spotify\.com\/(track|album|playlist)\/([A-Za-z0-9]+)/);
+    const urlMatch = query.match(/open\.spotify\.com\/(?:[a-zA-Z-]+\/)?(?:user\/[a-zA-Z0-9_-]+\/)?(track|album|playlist)\/([A-Za-z0-9]+)/);
     if (urlMatch) return { type: urlMatch[1], id: urlMatch[2] };
 
     const uriMatch = query.match(/^spotify:(track|album|playlist):([A-Za-z0-9]+)$/);
@@ -62,7 +61,6 @@ function formatTrack(track) {
     };
 }
 
-// Returns { type, name, tracks: [{ title, artist, searchQuery }] }
 export async function resolve(query, clientId, clientSecret) {
     const parsed = parseSpotifyUrl(query);
     if (!parsed) throw new Error('Not a valid Spotify URL.');

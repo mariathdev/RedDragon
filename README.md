@@ -90,6 +90,8 @@ npm start
 | Command | Description |
 |---------|-------------|
 | `/roll` | Roll dice using RPG notation (e.g. `2d6+3`) |
+| `/initiative` | Start an initiative session or roll initiative |
+| `/end` | End the initiative session and show turn order |
 
 ### Utilities
 | Command | Description |

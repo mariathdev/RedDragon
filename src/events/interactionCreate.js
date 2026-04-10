@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger.js';
-import { handleInteractionError } from '../utils/errorHandler.js';
+import { executeCommand } from '../utils/commandExecutor.js';
 
 export const name = 'interactionCreate';
 export const once = false;
@@ -13,12 +13,12 @@ export async function execute(interaction) {
         return;
     }
 
-    const where = interaction.guild?.name ?? 'DM';
-    logger.info('Interaction', `${interaction.user.tag} used /${interaction.commandName} in ${where}`);
-
-    try {
-        await cmd.execute(interaction);
-    } catch (err) {
-        await handleInteractionError(interaction, err);
-    }
+    await executeCommand({
+        command: cmd,
+        context: interaction,
+        logContext: 'Interaction',
+        actorTag: interaction.user.tag,
+        invokedName: `/${interaction.commandName}`,
+        location: interaction.guild?.name ?? 'DM',
+    });
 }

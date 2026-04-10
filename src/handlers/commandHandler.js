@@ -1,28 +1,15 @@
 import { Collection } from 'discord.js';
-import { readdir } from 'fs/promises';
-import { pathToFileURL } from 'url';
 import path from 'path';
 import { logger } from '../utils/logger.js';
-
-async function collectFiles(dir) {
-    const entries = await readdir(dir, { withFileTypes: true });
-    const files   = [];
-    for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory())        files.push(...await collectFiles(full));
-        else if (entry.name.endsWith('.js')) files.push(full);
-    }
-    return files;
-}
+import { collectJavaScriptFiles, importModule } from '../utils/moduleLoader.js';
 
 export async function loadCommands(client) {
     client.commands = new Collection();
-    const files = await collectFiles(path.resolve('src/commands'));
+    const files = await collectJavaScriptFiles(path.resolve('src/commands'));
 
     for (const file of files) {
-        const url = pathToFileURL(file).href;
         try {
-            const mod = await import(url);
+            const mod = await importModule(file);
             if (!mod.data || !mod.execute) {
                 logger.warn('Commands', `${path.basename(file)} ignored: missing "data" or "execute"`);
                 continue;

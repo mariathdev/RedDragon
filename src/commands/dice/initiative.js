@@ -2,51 +2,52 @@ import { SlashCommandBuilder } from 'discord.js';
 import { parse } from '../../utils/diceParser.js';
 import { createEmbed, warningEmbed, errorEmbed } from '../../utils/embedBuilder.js';
 import { Colors } from '../../config/constants.js';
-
-// Active initiative sessions keyed by channelId
-const sessions = new Map();
-
-const MAX_PARTICIPANTS = 12;
+import {
+    MAX_PARTICIPANTS,
+    createInitiativeEntry,
+    getSession,
+    hasSession,
+    registerInitiativeRoll,
+    startSession,
+} from '../../dice/initiativeSession.js';
 
 export const data = new SlashCommandBuilder()
-    .setName('ini')
+    .setName('initiative')
     .setDescription('Start an initiative tracker or roll your initiative')
     .addStringOption(o =>
-        o.setName('expressao')
+        o.setName('expression')
          .setDescription('Dice expression with modifier (ex: d20+3, 1d20+5). Leave empty to start session.')
          .setRequired(false)
     );
 
 export async function execute(interaction) {
-    const expr = interaction.options.getString('expressao');
+    const expr = interaction.options.getString('expression');
     const channelId = interaction.channel.id;
     const userName = interaction.member?.displayName ?? interaction.user.username;
 
-    // No expression: start a new session
     if (!expr) {
-        if (sessions.has(channelId)) {
+        if (hasSession(channelId)) {
             return interaction.reply({
-                embeds: [warningEmbed({ description: 'An initiative session is already active in this channel. Use `/fim` to end it.' })],
+                embeds: [warningEmbed({ description: 'An initiative session is already active in this channel. Use `/end` to end it.' })],
                 ephemeral: true,
             });
         }
 
-        sessions.set(channelId, { entries: [], startedBy: userName });
+        startSession(channelId, userName);
 
         const embed = createEmbed({
             color: Colors.FYRE_ORANGE,
             title: 'Initiative Tracker',
-            description: `**${userName}** started an initiative session!\n\nEach player rolls their initiative:\n\`/ini d20+3\` or \`!ini d20+5\`\n\nMax ${MAX_PARTICIPANTS} participants.\nUse \`/fim\` or \`!fim\` to close and display the order.`,
+            description: `**${userName}** started an initiative session.\n\nEach player rolls with:\n\`/initiative d20+3\` or \`!initiative d20+5\`\n\nMax ${MAX_PARTICIPANTS} participants.\nUse \`/end\` or \`!end\` to close and display the turn order.`,
         });
 
         return interaction.reply({ embeds: [embed] });
     }
 
-    // Expression provided: roll and register
-    const session = sessions.get(channelId);
+    const session = getSession(channelId);
     if (!session) {
         return interaction.reply({
-            embeds: [warningEmbed({ description: 'No initiative session active. Use `/ini` without arguments to start one.' })],
+            embeds: [warningEmbed({ description: 'No initiative session is active. Use `/initiative` without arguments to start one.' })],
             ephemeral: true,
         });
     }
@@ -58,30 +59,29 @@ export async function execute(interaction) {
         });
     }
 
-    const existing = session.entries.find(e => e.userId === interaction.user.id);
-    if (existing) {
-        return interaction.reply({
-            embeds: [warningEmbed({ description: `You already rolled: **${existing.total}** (${existing.expression}). Wait for the next session.` })],
-            ephemeral: true,
-        });
-    }
-
     const result = parse(expr);
     if (result.error) {
         return interaction.reply({ embeds: [errorEmbed({ description: result.error })], ephemeral: true });
     }
 
-    session.entries.push({
+    const registration = registerInitiativeRoll(channelId, createInitiativeEntry({
         userId: interaction.user.id,
-        name: userName,
-        total: result.total,
+        userName,
+        result,
         expression: expr,
-        rolls: result.rolls,
-        type: result.type,
-        modifier: result.type === 'modifier' ? `${result.sign}${result.modifier}` : null,
-    });
+    }));
 
-    const position = session.entries.length;
+    if (!registration.ok) {
+        const description = registration.reason === 'already_registered'
+            ? `You already rolled: **${registration.entry.total}** (${registration.entry.expression}). Wait for the next session.`
+            : `Maximum of ${MAX_PARTICIPANTS} participants reached.`;
+
+        return interaction.reply({
+            embeds: [warningEmbed({ description })],
+            ephemeral: true,
+        });
+    }
+
     const rollDetail = result.type === 'modifier'
         ? `[${result.rolls.join(', ')}] ${result.sign} ${result.modifier} = **${result.total}**`
         : `[${result.rolls.join(', ')}] = **${result.total}**`;
@@ -92,23 +92,9 @@ export async function execute(interaction) {
         description: `**${userName}** rolled initiative!\n${rollDetail}`,
         fields: [
             { name: 'Expression', value: `\`${expr}\``, inline: true },
-            { name: 'Registered', value: `${position}/${MAX_PARTICIPANTS}`, inline: true },
+            { name: 'Registered', value: `${registration.position}/${MAX_PARTICIPANTS}`, inline: true },
         ],
     });
 
     return interaction.reply({ embeds: [embed] });
-}
-
-/**
- * Returns the sorted entries for a channel and clears the session.
- * Used by the /fim command.
- */
-export function closeSession(channelId) {
-    const session = sessions.get(channelId);
-    if (!session) return null;
-
-    sessions.delete(channelId);
-
-    const sorted = [...session.entries].sort((a, b) => b.total - a.total);
-    return { entries: sorted, startedBy: session.startedBy };
 }

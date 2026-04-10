@@ -1,30 +1,17 @@
 import { REST, Routes } from 'discord.js';
-import { readdir } from 'fs/promises';
-import { pathToFileURL } from 'url';
 import path from 'path';
 import { env } from '../src/config/environment.js';
-
-async function collectFiles(dir) {
-    const entries = await readdir(dir, { withFileTypes: true });
-    const files   = [];
-    for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory())             files.push(...await collectFiles(full));
-        else if (entry.name.endsWith('.js')) files.push(full);
-    }
-    return files;
-}
+import { collectJavaScriptFiles, importModule } from '../src/utils/moduleLoader.js';
 
 async function deploy() {
-    const files    = await collectFiles(path.resolve('src/commands'));
+    const files = await collectJavaScriptFiles(path.resolve('src/commands'));
     const commands = [];
 
     for (const file of files) {
-        const url = pathToFileURL(file).href;
-        const mod = await import(url);
+        const mod = await importModule(file);
         if (!mod.data) continue;
         commands.push(mod.data.toJSON());
-        console.log(`  Preparado: /${mod.data.name}`);
+        console.log(`  Prepared: /${mod.data.name}`);
     }
 
     const rest = new REST({ version: '10' }).setToken(env.token);

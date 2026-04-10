@@ -19,7 +19,6 @@ export async function execute(client) {
         }],
     });
 
-    // Connect to Lavalink node (manager was created pre-login in index.js)
     if (client.lavalink) {
         try {
             await initLavalink();

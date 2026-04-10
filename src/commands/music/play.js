@@ -5,12 +5,13 @@ import { createEmbed, errorEmbed, warningEmbed } from '../../utils/embedBuilder.
 import { logger } from '../../utils/logger.js';
 import { Colors, Music } from '../../config/constants.js';
 import { env } from '../../config/environment.js';
+import { createQueuedTrackEmbed, enqueueFirstResolvedTrack } from '../../music/playbackRequests.js';
 
 export const data = new SlashCommandBuilder()
     .setName('play')
     .setDescription('Play music or add to queue')
     .addStringOption(o =>
-        o.setName('busca')
+        o.setName('query')
          .setDescription('YouTube/Spotify URL or song name')
          .setRequired(true)
     );
@@ -23,7 +24,7 @@ export async function execute(interaction) {
         return interaction.editReply({ embeds: [warningEmbed({ description: 'You need to be in a voice channel.' })] });
     }
 
-    const perms = voiceChannel.permissionsFor(interaction.guild.members.me);
+    const perms = voiceChannel.permissionsFor(interaction.client.user);
     if (!perms.has(PermissionsBitField.Flags.Connect) || !perms.has(PermissionsBitField.Flags.Speak)) {
         return interaction.editReply({ embeds: [errorEmbed({ description: 'No permission to join or speak in the channel.' })] });
     }
@@ -34,7 +35,7 @@ export async function execute(interaction) {
         return interaction.editReply({ embeds: [errorEmbed({ description: err.message })] });
     }
 
-    const query = interaction.options.getString('busca');
+    const query = interaction.options.getString('query');
 
     if (isSpotifyUrl(query)) {
         return handleSpotify(interaction, query);
@@ -44,32 +45,23 @@ export async function execute(interaction) {
 }
 
 async function handleSearch(interaction, query) {
-    let tracks;
     try {
-        tracks = await pm.resolve(interaction.guildId, query, interaction.user.username);
+        const { track, enqueueResult } = await enqueueFirstResolvedTrack({
+            guildId: interaction.guildId,
+            query,
+            requester: interaction.user.username,
+        });
+
+        if (enqueueResult) {
+            return interaction.editReply({ embeds: [warningEmbed({ description: enqueueResult.error })] });
+        }
+
+        return interaction.editReply({
+            embeds: [createQueuedTrackEmbed(track?.info?.title ?? track?.title ?? 'Song', interaction.user.username)],
+        });
     } catch (err) {
         return interaction.editReply({ embeds: [errorEmbed({ description: err.message })] });
     }
-
-    if (!tracks?.length) {
-        return interaction.editReply({ embeds: [errorEmbed({ description: 'No tracks found.' })] });
-    }
-
-    const track = tracks[0];
-    track.requester = interaction.user.username;
-
-    const errMsg = await pm.enqueue(interaction.guildId, track);
-    if (errMsg) {
-        return interaction.editReply({ embeds: [warningEmbed({ description: errMsg.error })] });
-    }
-
-    const embed = createEmbed({
-        color:       Colors.FYRE_ORANGE,
-        title:       'Added to queue',
-        description: `**${track?.info?.title ?? track?.title ?? 'Song'}**`,
-        fields:      [{ name: 'Requested by', value: interaction.user.username, inline: true }],
-    });
-    return interaction.editReply({ embeds: [embed] });
 }
 
 async function handleSpotify(interaction, query) {
@@ -89,32 +81,24 @@ async function handleSpotify(interaction, query) {
 
     if (type === 'track') {
         const { searchQuery, title } = tracks[0];
-        let laTracks;
         try {
-            laTracks = await pm.resolve(interaction.guildId, `ytmsearch:${searchQuery}`, interaction.user.username);
+            const { track, enqueueResult } = await enqueueFirstResolvedTrack({
+                guildId: interaction.guildId,
+                query: `ytmsearch:${searchQuery}`,
+                requester: interaction.user.username,
+                fallbackTitle: title,
+            });
+
+            if (enqueueResult) {
+                return interaction.editReply({ embeds: [warningEmbed({ description: enqueueResult.error })] });
+            }
+
+            return interaction.editReply({
+                embeds: [createQueuedTrackEmbed(track?.info?.title ?? title, interaction.user.username)],
+            });
         } catch (err) {
             return interaction.editReply({ embeds: [errorEmbed({ description: err.message })] });
         }
-
-        if (!laTracks?.length) {
-            return interaction.editReply({ embeds: [errorEmbed({ description: `No results found for: ${title}` })] });
-        }
-
-        const track = laTracks[0];
-        track.requester = interaction.user.username;
-
-        const errMsg = await pm.enqueue(interaction.guildId, track);
-        if (errMsg) {
-            return interaction.editReply({ embeds: [warningEmbed({ description: errMsg.error })] });
-        }
-
-        const embed = createEmbed({
-            color:       Colors.FYRE_ORANGE,
-            title:       'Added to queue',
-            description: `**${track?.info?.title ?? title}**`,
-            fields:      [{ name: 'Requested by', value: interaction.user.username, inline: true }],
-        });
-        return interaction.editReply({ embeds: [embed] });
     }
 
     // Album or playlist — bulk enqueue

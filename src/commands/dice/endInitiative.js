@@ -1,10 +1,10 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { closeSession } from './ini.js';
 import { createEmbed, warningEmbed } from '../../utils/embedBuilder.js';
 import { Colors } from '../../config/constants.js';
+import { closeSession } from '../../dice/initiativeSession.js';
 
 export const data = new SlashCommandBuilder()
-    .setName('fim')
+    .setName('end')
     .setDescription('End the initiative session and display the turn order');
 
 export async function execute(interaction) {

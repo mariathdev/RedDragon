@@ -29,8 +29,8 @@ export function parse(raw) {
         const rolls      = rollN(count, sides);
         const byIdx      = rolls.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
         const droppedIdx = new Set(byIdx.slice(0, drop).map(([, i]) => i));
-        const kept       = rolls.filter((_, i) => !droppedIdx.has(i));
-        return { type: 'drop', count, sides, drop, rolls, droppedIdx, kept, total: kept.reduce((s, v) => s + v, 0) };
+        const kept = rolls.filter((_, i) => !droppedIdx.has(i));
+        return { type: 'drop', count, sides, drop, rolls, droppedIdx, total: kept.reduce((s, v) => s + v, 0) };
     }
 
     m = expr.match(/^(\d+)#(\d+)?d(\d+)$/);
@@ -73,5 +73,5 @@ export function parse(raw) {
         return { type: 'simple', count, sides, rolls, total: rolls.reduce((s, v) => s + v, 0) };
     }
 
-    return { error: 'Formato invalido. Exemplos: `d20`, `2d6`, `1d20+5`, `4d6dl1`, `5#1d20`' };
+    return { error: 'Invalid format. Examples: `d20`, `2d6`, `1d20+5`, `4d6dl1`, `5#1d20`' };
 }

@@ -1,26 +1,26 @@
 import { SlashCommandBuilder } from 'discord.js';
-import * as pm from '../../music/playerManager.js';
 import { createEmbed, warningEmbed } from '../../utils/embedBuilder.js';
 import { Colors, Music } from '../../config/constants.js';
+import { getPlaybackState, getTrackTitle } from '../../music/commandSupport.js';
 
 export const data = new SlashCommandBuilder()
     .setName('queue')
     .setDescription('Display music queue')
     .addIntegerOption(o =>
-        o.setName('pagina')
+        o.setName('page')
          .setDescription('Page number')
          .setMinValue(1)
     );
 
 export async function execute(interaction) {
-    const s = pm.get(interaction.guildId);
+    const state = getPlaybackState(interaction.guildId);
 
-    if (!s || !s.player || (!s.player.track && s.player.queue.tracks.length === 0)) {
+    if (!state.player || (!state.currentTrack && state.player.queue.tracks.length === 0)) {
         return interaction.reply({ embeds: [warningEmbed({ description: 'The queue is empty.' })], ephemeral: true });
     }
 
-    const page  = interaction.options.getInteger('pagina') ?? 1;
-    const tracks = s.player.queue.tracks;
+    const page = interaction.options.getInteger('page') ?? 1;
+    const tracks = state.player.queue.tracks;
     const total = tracks.length;
     const pages = Math.max(1, Math.ceil(total / Music.PAGE_SIZE));
     const start = (page - 1) * Music.PAGE_SIZE;
@@ -33,8 +33,8 @@ export async function execute(interaction) {
         title:       'Playback Queue',
         description: lines.join('\n') || 'No songs in queue.',
         fields:      [
-            s.player.track
-                ? { name: 'Now Playing', value: `**${s.player.track.info.title}**`, inline: false }
+            state.currentTrack
+                ? { name: 'Now Playing', value: `**${getTrackTitle(state.currentTrack)}**`, inline: false }
                 : null,
             { name: 'Total', value: String(total), inline: true },
             { name: 'Page', value: `${page}/${pages}`, inline: true },

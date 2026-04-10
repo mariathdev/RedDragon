@@ -1,20 +1,11 @@
 import { createContext } from '../utils/messageContext.js';
-import { handleInteractionError } from '../utils/errorHandler.js';
-import { logger } from '../utils/logger.js';
+import { executeCommand } from '../utils/commandExecutor.js';
 
 const PREFIX = '!';
 
 const ALIASES = {
-    roll:       'rolar',
-    ini:        'ini',
-    fim:        'fim',
-    play:       'play',
-    pause:      'pause',
-    resume:     'resume',
-    skip:       'skip',
-    stop:       'stop',
-    queue:      'queue',
-    disconnect: 'disconnect',
+    endinitiative: 'end',
+    initiativeend: 'end',
 };
 
 export const name = 'messageCreate';
@@ -31,14 +22,13 @@ export async function execute(message) {
     const cmd       = message.client.commands.get(slashName);
     if (!cmd) return;
 
-    const where = message.guild?.name ?? 'DM';
-    logger.info('Prefix', `${message.author.tag} used !${commandName} in ${where}`);
-
     const ctx = createContext(message, slashName, args);
-
-    try {
-        await cmd.execute(ctx);
-    } catch (err) {
-        await handleInteractionError(ctx, err);
-    }
+    await executeCommand({
+        command: cmd,
+        context: ctx,
+        logContext: 'Prefix',
+        actorTag: message.author.tag,
+        invokedName: `!${commandName}`,
+        location: message.guild?.name ?? 'DM',
+    });
 }

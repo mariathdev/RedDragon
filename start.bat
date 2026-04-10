@@ -2,41 +2,45 @@
 setlocal
 cd /d "%~dp0"
 
-echo Iniciando Red Dragon Bot...
+echo Starting Red Dragon Bot...
 
-REM Verificar se o Lavalink.jar existe
+REM Check whether Lavalink.jar exists
 if not exist "C:\Lavalink\Lavalink.jar" (
-    echo [ERRO] C:\Lavalink\Lavalink.jar nao encontrado.
-    echo [ERRO] Coloque o Lavalink.jar em C:\Lavalink e tente novamente.
+    echo [ERROR] C:\Lavalink\Lavalink.jar not found.
+    echo [ERROR] Place Lavalink.jar in C:\Lavalink and try again.
     pause
     exit /b 1
 )
 
-REM Verificar se o youtube-plugin existe na pasta plugins
+REM Check whether the youtube plugin exists in the plugins folder
 if not exist "C:\Lavalink\plugins\youtube-plugin-1.18.0.jar" (
-    echo [AVISO] Plugin nao encontrado em C:\Lavalink\plugins\youtube-plugin-1.18.0.jar
-    echo [AVISO] Crie a pasta C:\Lavalink\plugins\ e coloque o youtube-plugin-1.18.0.jar la.
+    echo [WARN] Plugin not found at C:\Lavalink\plugins\youtube-plugin-1.18.0.jar
+    echo [WARN] Create C:\Lavalink\plugins\ and place youtube-plugin-1.18.0.jar there.
 )
 
-REM Iniciar Lavalink em background a partir de C:\Lavalink
-echo Iniciando Lavalink em C:\Lavalink...
+REM Start Lavalink in the background from C:\Lavalink
+echo Starting Lavalink in C:\Lavalink...
 start "Lavalink" /D "C:\Lavalink" java -Dconfig.location="%~dp0lavalink\application.yml" -jar Lavalink.jar
 
-REM Aguardar Lavalink iniciar
-echo Aguardando Lavalink iniciar (15s)...
-timeout /t 15 /nobreak > nul
+REM Wait for Lavalink to start
+echo Waiting for Lavalink to start (15s)...
+ping -n 16 127.0.0.1 > nul
 
-REM Registrar comandos no Discord
-echo Registrando comandos slash...
+REM Register Discord slash commands
+echo Registering slash commands...
 node scripts/deploy-commands.js
 if errorlevel 1 (
-    echo [ERRO] Falha ao registrar comandos.
+    echo [ERROR] Failed to register commands.
     pause
     exit /b 1
 )
 
-REM Iniciar o bot
-echo Iniciando bot...
+REM Wait for services to stabilize before starting the bot
+echo Waiting for stabilization (5s)...
+ping -n 6 127.0.0.1 > nul
+
+REM Start the bot
+echo Starting bot...
 node src/index.js
 
 pause

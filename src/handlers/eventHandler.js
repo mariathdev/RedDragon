@@ -1,18 +1,16 @@
-import { readdir } from 'fs/promises';
-import { pathToFileURL } from 'url';
 import path from 'path';
 import { logger } from '../utils/logger.js';
+import { collectJavaScriptFiles, importModule } from '../utils/moduleLoader.js';
 
 export async function loadEvents(client) {
     const dir = path.resolve('src/events');
-    const files = (await readdir(dir)).filter(f => f.endsWith('.js'));
+    const files = await collectJavaScriptFiles(dir);
 
     for (const file of files) {
-        const url = pathToFileURL(path.join(dir, file)).href;
         try {
-            const mod = await import(url);
+            const mod = await importModule(file);
             if (!mod.name || !mod.execute) {
-                logger.warn('Events', `${file} ignored: missing "name" or "execute"`);
+                logger.warn('Events', `${path.basename(file)} ignored: missing "name" or "execute"`);
                 continue;
             }
 
@@ -20,7 +18,7 @@ export async function loadEvents(client) {
             client[method](mod.name, (...args) => mod.execute(...args));
             logger.info('Events', `Registered: ${mod.name} (once: ${!!mod.once})`);
         } catch (err) {
-            logger.error('Events', `Error loading ${file}`, err);
+            logger.error('Events', `Error loading ${path.basename(file)}`, err);
         }
     }
 }

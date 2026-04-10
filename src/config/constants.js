@@ -7,16 +7,13 @@ export const Colors = {
 };
 
 export const Bot = {
-    NAME:        'Red Dragon',
     VERSION:     '2.0.0',
-    ICON_PATH:   './assets/logo.webp',
     FOOTER_TEXT: 'Red Dragon Bot',
 };
 
 export const Loop = {
     HEALTH_INTERVAL_MS:     60_000,
     MAX_RECONNECT_ATTEMPTS: 5,
-    RECONNECT_DELAY_MS:     5_000,
 };
 
 export const Dice = {
@@ -28,4 +25,3 @@ export const Music = {
     MAX_QUEUE:    200,
     PAGE_SIZE:    10,
 };
-

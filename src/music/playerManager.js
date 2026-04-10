@@ -7,8 +7,6 @@ import { env } from '../config/environment.js';
 
 let client = null;
 
-// -- Internal helpers -----------------------------------------------
-
 function probeLavalink(host, port, timeoutMs = 2500) {
     return new Promise((resolve) => {
         const socket = new net.Socket();
@@ -30,9 +28,11 @@ function probeLavalink(host, port, timeoutMs = 2500) {
 }
 
 function registerLavalinkEvents(lavalink) {
-    // Node lifecycle
     lavalink.nodeManager.on('connect', (node) => {
         logger.info('Lavalink', `Node connected: ${node.id}`);
+        node.updateSession(true, 300_000).catch((err) => {
+            logger.warn('Lavalink', `Could not enable session resuming on node ${node.id}`, err);
+        });
     });
 
     lavalink.nodeManager.on('disconnect', (node) => {
@@ -47,7 +47,6 @@ function registerLavalinkEvents(lavalink) {
         logger.info('Lavalink', `Reconnecting to node: ${node.id}`);
     });
 
-    // Track lifecycle
     lavalink.on('trackStart', (player, track) => {
         logger.info('Lavalink', `trackStart: "${track.info?.title}" in guild ${player.guildId}`);
         const channel = player.textChannelId
@@ -67,7 +66,7 @@ function registerLavalinkEvents(lavalink) {
         channel.send({ embeds: [embed] }).catch(() => {});
     });
 
-    lavalink.on('trackEnd', (player, track, payload) => {
+    lavalink.on('trackEnd', (_player, track, payload) => {
         logger.info('Lavalink', `Track ended: "${track.info?.title}" (reason: ${payload?.reason})`);
     });
 
@@ -97,7 +96,21 @@ function registerLavalinkEvents(lavalink) {
         logger.info('Lavalink', `Queue ended for guild ${player.guildId}`);
     });
 
-    // Player lifecycle (debug)
+    lavalink.on('playerDisconnect', (player, voiceChannelId) => {
+        logger.warn('Lavalink', `Player disconnected from voice channel ${voiceChannelId} in guild ${player.guildId}`);
+    });
+
+    lavalink.on('playerReconnect', (player, voiceChannelId) => {
+        logger.info('Lavalink', `Player reconnected to voice channel ${voiceChannelId} in guild ${player.guildId}`);
+    });
+
+    lavalink.on('playerSocketClosed', (player, payload) => {
+        logger.warn(
+            'Lavalink',
+            `Voice socket closed for guild ${player.guildId} (code: ${payload?.code ?? 'unknown'}, byRemote: ${payload?.byRemote ?? 'unknown'}, reason: ${payload?.reason ?? 'unknown'})`,
+        );
+    });
+
     lavalink.on('playerCreate', (player) => {
         logger.info('Lavalink', `Player created for guild ${player.guildId}`);
     });
@@ -107,14 +120,6 @@ function registerLavalinkEvents(lavalink) {
     });
 }
 
-// -- Public API -----------------------------------------------------
-
-/**
- * Creates the LavalinkManager and attaches it to client.lavalink.
- * Called BEFORE client.login() so the raw event forwarder in index.js
- * can deliver VOICE_STATE_UPDATE / VOICE_SERVER_UPDATE packets
- * immediately. Does NOT connect to the Lavalink node yet.
- */
 export function createLavalinkManager(botClient) {
     client = botClient;
 
@@ -159,10 +164,6 @@ export function createLavalinkManager(botClient) {
     return lavalink;
 }
 
-/**
- * Connects to the Lavalink node. Called from the ready event
- * once client.user is available.
- */
 export async function initLavalink() {
     if (!client?.lavalink) {
         throw new Error('LavalinkManager not created. Call createLavalinkManager first.');
@@ -181,10 +182,6 @@ export async function initLavalink() {
     return client.lavalink;
 }
 
-/**
- * Ensures the Lavalink node is connected and usable.
- * Attempts reconnection if the node went down.
- */
 export async function ensureLavalinkReady() {
     if (!client?.lavalink) {
         throw new Error('Lavalink not initialized. Music is unavailable.');
@@ -197,19 +194,38 @@ export async function ensureLavalinkReady() {
     try {
         await client.lavalink.nodeManager.connectAll();
     } catch (err) {
-        logger.warn('Lavalink', 'Reconnect attempt failed', err);
+        const msg = err?.message ?? '';
+        if (!msg.includes('There are no nodes to connect')) {
+            logger.warn('Lavalink', 'Reconnect attempt failed', err);
+        }
     }
 
-    if (!client.lavalink.useable) {
-        throw new Error(`Lavalink server is offline at ${env.lavalink.host}:${env.lavalink.port}.`);
+    if (client.lavalink.useable) {
+        return client.lavalink;
     }
+
+    await new Promise((resolve, reject) => {
+        const cleanup = () => {
+            clearTimeout(timer);
+            client.lavalink.nodeManager.off('connect', onConnect);
+        };
+        const timer = setTimeout(
+            () => {
+                cleanup();
+                reject(new Error(`Lavalink server is offline at ${env.lavalink.host}:${env.lavalink.port}.`));
+            },
+            5000,
+        );
+        const onConnect = () => {
+            cleanup();
+            resolve();
+        };
+        client.lavalink.nodeManager.on('connect', onConnect);
+    });
 
     return client.lavalink;
 }
 
-/**
- * Returns the player and its text channel for a guild, or null.
- */
 export function get(guildId) {
     const lavalink = client?.lavalink;
     if (!lavalink) return null;
@@ -223,9 +239,6 @@ export function get(guildId) {
     };
 }
 
-/**
- * Connects to a voice channel and returns the player instance.
- */
 export async function connect(guildId, voiceChannel, textChannel) {
     const lavalink = await ensureLavalinkReady();
     let player = lavalink.getPlayer(guildId);
@@ -251,9 +264,6 @@ export async function connect(guildId, voiceChannel, textChannel) {
     return player;
 }
 
-/**
- * Adds a track to the queue and starts playback if idle.
- */
 export async function enqueue(guildId, track) {
     const s = get(guildId);
     if (!s) throw new Error('Player not initialized.');
@@ -271,9 +281,6 @@ export async function enqueue(guildId, track) {
     return null;
 }
 
-/**
- * Searches for tracks using the player's search method.
- */
 export async function resolve(guildId, query, requester) {
     await ensureLavalinkReady();
     const s = get(guildId);
@@ -288,9 +295,6 @@ export async function resolve(guildId, query, requester) {
     return tracks;
 }
 
-/**
- * Destroys the player for a guild.
- */
 export async function destroy(guildId) {
     const lavalink = client?.lavalink;
     if (!lavalink) return;
